@@ -128,7 +128,19 @@ impl Term {
 
     /// Performs normal-order reduction.
     pub fn normal_order_reduction(&self) -> Term {
-        todo!("Implement this.")
+        match self {
+            Term::Var(_) => self.clone(),
+            Term::Lambda(_, _) => self.clone(),
+            Term::Application(f, p) => {
+                match f.normal_order_reduction() {
+                    Term::Lambda(param, body) => {
+                        let substituted = body.perform_substitution(&param, p);
+                        substituted.normal_order_reduction()
+                    }
+                    g => Term::Application(Box::new(g), p.clone()),
+                }
+            }
+        }
     }
 }
 
@@ -288,7 +300,49 @@ mod tests {
     }
 
     #[test]
-    fn test_normal_order_reduction() {
-        todo!("Write this test!");
-    }
+fn test_normal_order_reduction() {
+    // Test: variable stays as-is
+    let var = Term::Var("x".to_string());
+    assert_eq!(format!("{}", var.normal_order_reduction()), "x");
+    
+    // Test: lambda stays as-is
+    let lambda = Term::Lambda("x".to_string(), Box::new(Term::Var("x".to_string())));
+    assert_eq!(format!("{}", lambda.normal_order_reduction()), "λx.x");
+    
+    // Test: identity function applied to itself: (\x.x \x.x) -> \x.x
+    let identity = Term::Lambda("x".to_string(), Box::new(Term::Var("x".to_string())));
+    let app = Term::Application(Box::new(identity.clone()), Box::new(identity.clone()));
+    assert_eq!(format!("{}", app.normal_order_reduction()), "λx.x");
+    
+    // Test: (\x.y z) -> y
+    let lambda = Term::Lambda("x".to_string(), Box::new(Term::Var("y".to_string())));
+    let app = Term::Application(Box::new(lambda), Box::new(Term::Var("z".to_string())));
+    assert_eq!(format!("{}", app.normal_order_reduction()), "y");
+    
+    // Test: application with non-lambda function
+    let app = Term::Application(
+        Box::new(Term::Var("f".to_string())),
+        Box::new(Term::Var("x".to_string())),
+    );
+    assert_eq!(format!("{}", app.normal_order_reduction()), "(f x)");
+    
+    // Test: nested application (\x.\y.x TRUE) FALSE -> \y.TRUE
+    let true_term = Term::Lambda(
+        "x".to_string(),
+        Box::new(Term::Lambda(
+            "y".to_string(),
+            Box::new(Term::Var("x".to_string()))
+        ))
+    );
+    let false_term = Term::Lambda(
+        "x".to_string(),
+        Box::new(Term::Lambda(
+            "y".to_string(),
+            Box::new(Term::Var("y".to_string()))
+        ))
+    );
+    let app1 = Term::Application(Box::new(true_term), Box::new(false_term));
+    let result = app1.normal_order_reduction();
+    assert!(format!("{}", result).starts_with("λy."));
+}
 }

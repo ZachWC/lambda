@@ -50,7 +50,22 @@ fn lambda_parser(input: &str) -> Option<(Term, &str)> {
 
 /// Parses an application term.
 fn application_parser(input: &str) -> Option<(Term, &str)> {
-    todo!("Implement this. See `lambda_parser` for help.")
+    let p = parse::and(
+        parse::chars("(".to_string()),
+        parse::and(
+            Box::new(term_parser),
+            parse::and(
+                Box::new(term_parser),
+                parse::chars(")".to_string())
+            ),
+        ),
+    );
+    
+    if let Some(((_open_paren, (func, (arg, _close_paren))), rest)) = p(input) {
+        Some((Term::Application(Box::new(func), Box::new(arg)), rest))
+    } else {
+        None
+    }
 }
 
 /// Displays a the prompt `msg` to stdout, and then reads a line into `line`.
